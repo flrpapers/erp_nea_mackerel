@@ -1,6 +1,6 @@
 ---
-title: "Ecological Reference Points"
-subtitle: "**North East Atlantic Mackerel**: MSE for Reference Case"
+title: "Northeast Atlantic Mackerel MSE"
+subtitle: "**MSE for Reference Case**"
 author: "L Kell & J Bentley"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
@@ -238,9 +238,9 @@ rfs =merge(rfs,blim,by=c("OM","SRR"))
 names(rfs)[15:20]=paste(names(rfs)[15:20],"blim",sep=".")
 
 
-rfs=transmute(rfs,OM=OM,SRR=SRR,
-              SSB     =SSB.y/SSB.x,
-              Recruits=Recruits.y/Recruits.x)
+rf2=transmute(rfs,OM=OM,SRR=SRR,
+              SSB     =SSB.msy/SSB.virgin,
+              Recruits=Recruits.msy/Recruits.virgin)
 
 F       =FLQuants(mlply(seq(10), function(i) fbar( robustness[[i]])/
                       subset(rfs,OM==scen[i,"OM"]&SRR==scen[i,"SRR"])$F.msy))

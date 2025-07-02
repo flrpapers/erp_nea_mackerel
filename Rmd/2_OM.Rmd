@@ -1,6 +1,6 @@
 ---
-title: "Ecological Reference Points"
-subtitle: "**North East Atlantic Mackerel**: Operating Model Conditioning"
+title: "Northeast Atlantic Mackerel MSE"
+subtitle: "**Operating Model Conditioning**"
 author: "L Kell & J Bentley"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
@@ -289,7 +289,6 @@ cat(c("Natural Mortality",
 write(t(m),file="../data/inputs/ices/nm-4.dat",ncol=13,append=T)
 ```
 
-
 ```{r}
 plot(oms,metrics=list(M=function(x) m(x)[4]))+
   theme(legend.position="bottom")
@@ -329,7 +328,6 @@ plot(oms)+
 **Figure`r iFig=iFig+1; iFig`** Historical time series.
 
 (#top)
-
 
 ## Stock recruitment relationship {#sr}
 
@@ -377,7 +375,6 @@ crvs=rbind(crvs,crv2[,-3])
 save(srs,oms,eqs,crvs,file="../data/om/condOms.RData") 
 ```
 
-
 ```{r,srr1, fig.width=7,fig.height=6}
 plot(srs[["Reference"]])+xlab("SSB")+ylab("Recruits")+
   theme_bw(16)+ 
@@ -386,7 +383,6 @@ plot(srs[["Reference"]])+xlab("SSB")+ylab("Recruits")+
 
 **Figure `r iFig=iFig+1; iFig`** Stock recruitment relationship fits
 
-  
 ```{r, cond-robustness-sr}
 ggplot(crvs)+  
   geom_line(aes(SSB/1000,Recruits/1000,col=SRR))+
@@ -426,7 +422,6 @@ ggplot(as.data.frame(residuals(sr),drop=TRUE))+
 **Figure `r iFig=iFig+1; iFig`** Recruitment residuals, with regimes indicated by box.
 
 Based on the residuals increase the expected recruitment
-
 
 ```{r, recDevs}
 nits =500
@@ -472,7 +467,6 @@ nits=100
 inN=FLQuant(c(t(exp(rmvnorm(nits,log(stock.n(om)[,"2000",,,,1,drop=T]),sams[[1]][["rep"]]$nvar)))),
         dimnames=list(age=0:12,year=2000,iter=seq(nits)))
 ```
-
 
 [Back to Top](#top)
 

@@ -1,13 +1,13 @@
 ---
-title: "Ecological Reference Points"
-subtitle: "**North East Atlantic Mackerel**: ICES Assessment"
+title: "Northeast Atlantic Mackerel MSE"
+subtitle: "**ICES Assessment**"
 author: "L Kell & J Bentley"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 mathjax: TRUE
 tags: FLR FLCore introduction
 license: Creative Commons Attribution-ShareAlike 4.0 International Public License
-bibliography: ../refs.bib
+bibliography: refs.bib
 #knit: (function(inputFile, encoding) {
 #  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../outputs/html") })
 ---

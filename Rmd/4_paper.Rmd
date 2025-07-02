@@ -1,6 +1,6 @@
 ---
-title: "Ecological Reference Points"
-subtitle: "**Stress Test**"
+title: "Northeast Atlantic Mackerel MSE"
+subtitle: "**Results**"
 author: "L Kell"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
@@ -83,7 +83,7 @@ source("../R/mFn.R")
 load("../data/om/condOms.RData")  
 
 plot(srs[["Reference"]])+xlab("SSB")+ylab("Recruits")+
-  theme_bw(16)+ 
+  theme_bw(16)+
   theme(legend.position="bottom")
 ```
 
@@ -91,9 +91,9 @@ plot(srs[["Reference"]])+xlab("SSB")+ylab("Recruits")+
 
   
 ```{r, cond-robustness-eq, fig.width=7,fig.height=6}
-ggplot(crvs)+     
+ggplot(crvs)+
   geom_line(aes(SSB/1000,Catch/1000,col=SRR))+
-  facet_wrap(~OM)+
+  facet_wrap(~OM)+ 
   scale_color_manual("SRR",values=rainbow(3))+
   theme(legend.position="bottom")
 ```
@@ -106,7 +106,7 @@ load("../data/results/robustness.RData")
 load("../data/om/cvrs.RData")
 load("../data/results/results.RData")
 
-for (i in seq(dim(scen)[1])){
+for (i in seq(dim(scen)[1])){ 
   refpts(eqs[[scen[i,"OM"]]][[scen[i,"SRR"]]])["msy",
             c("ssb","rec","yield","harvest")]=
     unlist(c(subset(msy,OM==scen[i,"OM"]&SRR==scen[i,"SRR"])[,3:6]))
@@ -135,7 +135,7 @@ plot(FLStocks(robustness))
 **Figure `r iFig=iFig+1;iFig`** 
 
 ```{r, p}
-nms2=c("Reference","SRR:0.9","SRR:Depen","M:Driver","M:High")
+nms2=c("Reference","SRR:0.9","SRR:Depen","M:Driver","M:High") 
 
 F=results$F
 ggarrange(plot(F[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
@@ -164,7 +164,7 @@ ggarrange(plot(F[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
 **Figure `r iFig=iFig+1;iFig`** 
 
 ```{r}
-SSB=results$SSB
+SSB=results$SSB 
 ggarrange(plot(SSB[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
             facet_grid(factor(qname,levels=1:5,labels=nms2)~., labeller=label_parsed)+
             geom_hline(aes(yintercept=level,linetype=Regime),
@@ -195,7 +195,7 @@ ggarrange(plot(SSB[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
 **Figure `r iFig=iFig+1;iFig`** 
 
 ```{r}
-Catch=results$Catch
+Catch=results$Catch 
 ggarrange(plot(Catch[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
             facet_grid(factor(qname,levels=1:5,labels=nms2)~., labeller=label_parsed)+
             geom_hline(aes(yintercept=level,linetype=Regime),
@@ -223,7 +223,7 @@ ggarrange(plot(Catch[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
 **Figure `r iFig=iFig+1;iFig`** 
 
 ```{r}
-Recruits=results$Recruits
+Recruits=results$Recruits 
 ggarrange(plot(Recruits[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
             facet_grid(factor(qname,levels=1:5,labels=nms2)~., labeller=label_parsed)+
             geom_hline(aes(yintercept=level,linetype=Regime),
@@ -254,7 +254,7 @@ ggarrange(plot(Recruits[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
 **Figure `r iFig=iFig+1;iFig`** 
 
 ```{r}
-Forage=results$Forage
+Forage=results$Forage 
 ggarrange(plot(Forage[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=c(123))+
             facet_grid(factor(qname,levels=1:5,labels=nms2)~., labeller=label_parsed)+
             geom_hline(aes(yintercept=level,linetype=Regime),
@@ -1013,6 +1013,73 @@ p1
 
 ggsave("fig7.png", p1, width=10, height=12, dpi=300) 
 ```
+
+**Figure `r iFig=iFig+1;iFig`** SHiT plot 
+
+
+## Draft for Supplementary Materials: Explanation of Colour Derivation in Figure 17 (SHiT Plot)
+
+The SHiT plot (Figure 17) presents a traffic-light style visual summary of the performance of multiple reference points across scenarios, periods, and recruitment regimes. The colours—green, gold, and red—indicate the probability that each indicator meets or exceeds its management target or falls below its limit, thereby providing an intuitive assessment of stock and ecosystem status.
+
+### Data Preparation and Probability Calculation
+
+For each performance metric (SSB, F, Yield, ABI, Forage, Rebuild), simulated values were extracted from the Operating Model (OM) outputs for each combination of scenario, period, and recruitment regime. The data were grouped accordingly, and empirical cumulative distribution functions (ecdf) were computed to estimate the probability that the metric met or exceeded a predefined reference level.
+
+- For metrics where *higher values are better* (e.g., SSB, ABI, Forage), the probability was calculated as \$ P(X \geq reference) = 1 - ecdf(reference) \$.
+- For metrics where *lower values are better* (e.g., fishing mortality F), the probability was calculated as \$ P(X \leq reference) = ecdf(reference) \$.
+- For Yield, the median value relative to the reference was used instead of a probability.
+
+
+### Breakpoints and Categorization
+
+Probabilities or median values were binned into three categories corresponding to management status:
+
+
+| Metric | Breakpoints (cut points) | Interpretation of Categories |
+| :-- | :-- | :-- |
+| SSB | $c(0, 0.5, 0.66, 1)$ | Red (<0.5), Gold (0.5–0.66), Green (>0.66) |
+| F | $c(0, 0.33, 0.5, 1)$ | Red (<0.33), Gold (0.33–0.5), Green (>0.5) (Note: low F is better) |
+| Yield | $c(0, 0.8, 1, 10)$ (median relative to ref) | Red (<0.8), Gold (0.8–1), Green (>1) |
+| ABI | $c(0, 0.5, 0.66, 1)$ | Same as SSB |
+| Forage | $c(0, 0.5, 0.66, 1)$ | Same as SSB |
+| Rebuild | $c(0, 0.95, 1)$ | Red (<0.95), Green (≥0.95) (two categories only) |
+
+These breakpoints were chosen to reflect management risk tolerances and provide meaningful distinctions between poor, cautionary, and good performance.
+
+### Colour Mapping
+
+Each category was assigned a colour for plotting:
+
+- **Green:** High probability of meeting or exceeding the target (good status)
+- **Gold:** Intermediate probability (cautionary status)
+- **Red:** Low probability or failure to meet the target (poor status)
+
+The colour assignments were merged with the categorized data and used in the ggplot2 plotting call to colour the points accordingly.
+
+### Implementation in R
+
+The categorization and colour assignment were implemented using `cut()` on the ecdf results or median values, followed by merging with a lookup table of colours. For example, for SSB:
+
+```r
+tarS = ddply(dtS, .(Period,OM,SRR,Recruits), with, cut(ecdf(data)(1), breaks=c(0,0.5,0.66,1)))
+tarS = merge(tarS, data.frame(V1=unique(tarS$V1), colour=c("red","gold","green")))
+```
+
+Similar code blocks were used for other metrics with metric-specific breakpoints.
+
+### Summary Table of Breakpoints and Colour Assignments
+
+| Metric | Probability or Median Used | Breakpoints | Colours (Low to High) |
+| :-- | :-- | :-- | :-- |
+| SSB | Probability $P(X \geq 1)$ | 0–0.5, 0.5–0.66, 0.66–1 | Red, Gold, Green |
+| F | Probability $P(X \leq 1)$ | 0–0.33, 0.33–0.5, 0.5–1 | Red, Gold, Green |
+| Yield | Median relative to reference | 0–0.8, 0.8–1, >1 | Red, Gold, Green |
+| ABI | Probability $P(X \geq 1)$ | Same as SSB | Red, Gold, Green |
+| Forage | Probability $P(X \geq 1)$ | Same as SSB | Red, Gold, Green |
+| Rebuild | Probability $P(\text{years} \leq 8.5)$ | 0–0.95, 0.95–1 | Red, Green (no gold) |
+
+This approach provides a transparent, probabilistic basis for the traffic-light colours, facilitating rapid interpretation of complex simulation outcomes in the SHiT plot.
+
 
 [Back to Top](#top)
 
