@@ -1,0 +1,1050 @@
+---
+title: "Ecological Reference Points"
+subtitle: "**Stress Test**"
+author: "L Kell"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+mathjax: TRUE
+fig_width: 6 
+fig_height: 4 
+tags: FLR FLCore introduction
+license: Creative Commons Attribution-ShareAlike 4.0 International Public License
+#bibliography: ../refs.bib
+editor_options: 
+  markdown: 
+    wrap: 72
+#knit: (function(inputFile, encoding) {
+#  rmarkdown::render(inputFile, encoding=encoding, output_dir="../outputs/html") })
+---
+
+```{r, setwd, eval=FALSE}
+setwd("C:/flrpapers/erp_nea_mackerel/Rmd")
+```
+
+```{r, knitr, echo=FALSE, warning=FALSE, cache=FALSE}
+knitr::opts_chunk$set(echo=FALSE)
+# getwd()
+library(knitr)
+opts_chunk$set(comment   =NA, 
+               warning   =FALSE, 
+               message   =FALSE, 
+               error     =FALSE, 
+               echo      =FALSE, 
+               eval      =TRUE,
+               cache     =TRUE,
+               cache.path= "cache/4_Paper/",
+               fig.path  ="../output/figs/4_Paper-",
+               fig.width =8,
+               fig.height=8,
+               dev       ="png")
+iFig=0
+iTab=0
+```
+
+```{r, libs}
+library(ggplot2); theme_set(theme_bw())  
+
+library(FLCore)
+library(FLBRP)
+library(FLasher)
+library(ggplotFL)
+library(ggridges)
+library(ggExtra)
+library(ggside)
+library(ggnewscale)
+library(ggh4x)
+library(FLife)
+library(mydas)
+
+library(ggpubr)
+
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(reshape)
+
+library(patchwork)
+library(purrr)
+
+library(scales)
+```
+
+
+```{r, source}
+source("../R/abi.R")
+source("../R/eqFn.R")
+source("../R/boxFn.R")
+source("../R/rebuild.R")
+source("../R/mFn.R")
+```
+
+
+```{r,srr1, fig.width=7,fig.height=6}
+load("../data/om/condOms.RData")  
+
+plot(srs[["Reference"]])+xlab("SSB")+ylab("Recruits")+
+  theme_bw(16)+ 
+  theme(legend.position="bottom")
+```
+
+**Figure `r iFig=iFig+1; iFig`** Stock recruitment relationship fits
+
+  
+```{r, cond-robustness-eq, fig.width=7,fig.height=6}
+ggplot(crvs)+     
+  geom_line(aes(SSB/1000,Catch/1000,col=SRR))+
+  facet_wrap(~OM)+
+  scale_color_manual("SRR",values=rainbow(3))+
+  theme(legend.position="bottom")
+```
+
+**Figure `r iFig=iFig+1; iFig`** Production functions
+
+
+```{r, ts}
+load("../data/results/robustness.RData")
+load("../data/om/cvrs.RData")
+load("../data/results/results.RData")
+
+for (i in seq(dim(scen)[1])){
+  refpts(eqs[[scen[i,"OM"]]][[scen[i,"SRR"]]])["msy",
+            c("ssb","rec","yield","harvest")]=
+    unlist(c(subset(msy,OM==scen[i,"OM"]&SRR==scen[i,"SRR"])[,3:6]))
+}
+
+# msy=ddply(crvs,.(OM,.id), with, data.frame(
+#                                     SSB     =SSB[     Catch==max(Catch)],
+#                                     Recruits=Recruits[Catch==max(Catch)],
+#                                     Catch   =Catch[   Catch==max(Catch)],
+#                                     F       =F[       Catch==max(Catch)]))
+# names(msy)[2]="SRR"
+# scen=data.frame(OM =c(rep("Reference",3),"Environmental\nDriver","High M"),
+#                 SRR=c("Prior","h=0.9","Depensation","Prior","Prior"))
+# 
+
+vrgLn=transmute(merge(msy,vrg,by=c("OM","SRR")),
+               OM=OM,SRR=SRR,
+               SSB     =SSB.y/SSB.x*0.3,
+               Recruits=Recruits.y/Recruits.x*0.3,
+               Forage  =Forage.y/Forage.x*0.3)
+vrgLn=merge(scen[1:5,-3],vrgLn)
+
+plot(FLStocks(robustness))
+```
+
+**Figure `r iFig=iFig+1;iFig`** 
+
+```{r, p}
+nms2=c("Reference","SRR:0.9","SRR:Depen","M:Driver","M:High")
+
+F=results$F
+ggarrange(plot(F[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
+            facet_grid(factor(qname,levels=1:5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=1),col="darkgreen")+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,3.5),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+
+            geom_vline(aes(xintercept=2005),linetype=2)+
+            geom_vline(aes(xintercept=2010),linetype=2)+
+            geom_vline(aes(xintercept=2015),linetype=2)+
+            xlab("Year")+ylab("F"),
+          plot(F[6:10],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
+            facet_grid(factor(qname,levels=1:5+5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=1),col="darkgreen")+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,3.5),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+xlab("Year")+
+            geom_vline(aes(xintercept=2005),linetype=2)+
+            geom_vline(aes(xintercept=2010),linetype=2)+
+            geom_vline(aes(xintercept=2015),linetype=2)+
+            theme(axis.title.y=element_blank(), axis.text.y=element_blank()),
+            widths=c(1,0.8))
+```
+
+**Figure `r iFig=iFig+1;iFig`** 
+
+```{r}
+SSB=results$SSB
+ggarrange(plot(SSB[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
+            facet_grid(factor(qname,levels=1:5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=level,linetype=Regime),
+                                     data=rfLn,col="darkgreen")+
+            geom_hline(aes(yintercept=SSB),col="darkred",data=cbind(qname=seq(5),vrgLn))+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,4),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+
+            geom_vline(aes(xintercept=2005),linetype=2)+
+            geom_vline(aes(xintercept=2010),linetype=2)+
+            geom_vline(aes(xintercept=2015),linetype=2)+
+            xlab("Year")+ylab("SSB"),
+          plot(SSB[6:10],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
+            facet_grid(factor(qname,levels=1:5+5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=level,linetype=Regime),
+                                     data=rfLn,col="darkgreen")+
+            geom_hline(aes(yintercept=SSB),col="darkred",data=cbind(qname=6:10,vrgLn))+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,4),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+xlab("Year")+
+            geom_vline(aes(xintercept=2005),linetype=2)+
+            geom_vline(aes(xintercept=2010),linetype=2)+
+            geom_vline(aes(xintercept=2015),linetype=2)+
+            theme(axis.title.y=element_blank(), axis.text.y=element_blank()),
+            widths=c(1,0.8))
+```
+
+**Figure `r iFig=iFig+1;iFig`** 
+
+```{r}
+Catch=results$Catch
+ggarrange(plot(Catch[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
+            facet_grid(factor(qname,levels=1:5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=level,linetype=Regime),
+                                     data=rfLn,col="darkgreen")+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,3.5),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+
+            geom_vline(aes(xintercept=2005))+
+            geom_vline(aes(xintercept=2010))+
+            xlab("Year")+ylab("Catch"),
+          plot(Catch[6:10],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
+            facet_grid(factor(qname,levels=1:5+5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=level,linetype=Regime),
+                                     data=rfLn,col="darkgreen")+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,3.5),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+xlab("Year")+
+            geom_vline(aes(xintercept=2005),linetype=2)+
+            geom_vline(aes(xintercept=2010),linetype=2)+
+            geom_vline(aes(xintercept=2015),linetype=2)+
+            theme(axis.title.y=element_blank(), axis.text.y=element_blank()),
+            widths=c(1,0.8))
+```
+
+**Figure `r iFig=iFig+1;iFig`** 
+
+```{r}
+Recruits=results$Recruits
+ggarrange(plot(Recruits[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
+            facet_grid(factor(qname,levels=1:5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=level,linetype=Regime),
+                                     data=rfLn,col="darkgreen")+
+            geom_hline(aes(yintercept=Recruits),col="darkred",data=cbind(qname=seq(5),vrgLn))+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,3.5),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+
+            geom_vline(aes(xintercept=2005),linetype=2)+
+            geom_vline(aes(xintercept=2010),linetype=2)+
+            geom_vline(aes(xintercept=2015),linetype=2)+
+            xlab("Year")+ylab("Recruits"),
+          plot(Recruits[6:10],probs=c(0.05,0.33,0.5,0.66,0.95),iter=123)+
+            facet_grid(factor(qname,levels=1:5+5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=level,linetype=Regime),
+                                     data=rfLn,col="darkgreen")+
+            geom_hline(aes(yintercept=Recruits),col="darkred",data=cbind(qname=6:10,vrgLn))+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,3.5),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+xlab("Year")+
+            geom_vline(aes(xintercept=2005),linetype=2)+
+            geom_vline(aes(xintercept=2010),linetype=2)+
+            geom_vline(aes(xintercept=2015),linetype=2)+
+            theme(axis.title.y=element_blank(), axis.text.y=element_blank()),
+            widths=c(1,0.8))
+```
+
+**Figure `r iFig=iFig+1;iFig`** 
+
+```{r}
+Forage=results$Forage
+ggarrange(plot(Forage[1:5 ],probs=c(0.05,0.33,0.5,0.66,0.95),iter=c(123))+
+            facet_grid(factor(qname,levels=1:5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=level,linetype=Regime),
+                                     data=rfLn,col="darkgreen")+
+            geom_hline(aes(yintercept=Forage),col="darkred",data=cbind(qname=seq(5),vrgLn))+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,3.5),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+
+            geom_vline(aes(xintercept=2005),linetype=2)+
+            geom_vline(aes(xintercept=2010),linetype=2)+
+            geom_vline(aes(xintercept=2015),linetype=2)+
+            xlab("Year")+ylab("Forage"),
+          plot(Forage[6:10],probs=c(0.05,0.33,0.5,0.66,0.95),iter=c(123))+
+            facet_grid(factor(qname,levels=1:5+5,labels=nms2)~., labeller=label_parsed)+
+            geom_hline(aes(yintercept=level,linetype=Regime),
+                                     data=rfLn,col="darkgreen")+
+            geom_hline(aes(yintercept=Forage),col="darkred",data=cbind(qname=6:10,vrgLn))+
+            scale_x_continuous(limits=c(1995,2020),breaks=seq(2000,2020,10))+
+            scale_y_continuous(limits=c(0,3.5),breaks=c(0,1,2,3))+
+            scale_colour_manual(values=c("grey50"))+xlab("Year")+
+            geom_vline(aes(xintercept=2005),linetype=2)+
+            geom_vline(aes(xintercept=2010),linetype=2)+
+            geom_vline(aes(xintercept=2015),linetype=2)+
+            theme(axis.title.y=element_blank(), axis.text.y=element_blank()),
+            widths=c(1,0.8))
+```
+
+**Figure `r iFig=iFig+1;iFig`** 
+
+
+```{r, boxplot}
+fn<-function(x) {
+  r=quantile(x, probs=c(0.05, 0.33, 0.5, 0.66, 0.95))
+  names(r)=c("ymin", "lower", "middle", "upper", "ymax")
+  r}
+```
+
+
+```{r}
+load("../data/results/ts.RData")
+
+ts=transform(ts,Period=cut(year,breaks=c(2004,2009,2019,2020)))
+ICESStatus=ddply(ts,.(OM,SRR,Period),transmute, 
+                 F=mean(F),Yield=mean(Catch),SSB=mean(SSB))
+ICESStatus=subset(ICESStatus,!(OM=="Barents Sea"&(SRR=="Depensation"|SRR=="h=0.9"))&
+                             !(OM=="North Sea"  &(SRR=="Depensation"|SRR=="h=0.9"))&
+                              !OM=="M=0.15"&!OM=="High M")
+ICESStatus=cbind(ICESStatus,Recruits="Historical\nRec. trend")
+ICESStatus=transform(ICESStatus,OM =factor(OM,levels=c("Reference","North Sea", "Barents Sea")),
+                                SRR=factor(SRR,levels=c("Prior","h=0.9","Depensation")))
+```
+
+
+```{r, boxplot-catch, fig.height=6, fig.width=8}
+dat=as.data.frame(results$Catch,drop=T) 
+dat=cbind(dat,scen[dat$qname,])
+dat$Period=cut(dat$year,breaks=c(2004,2009,2019,2020))
+dat=subset(dat,!is.na(Period))
+dat=ddply(dat,.(OM,SRR,Recruits,Period), with, data.frame(data=filterLims(data)))
+dat=transform(dat,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("AR","Regime"),labels=c("Random\nRec. trend","Historical\nRec. trend")))
+
+bxC=ggplot(aes(x=Period,group=Period,qname,y=data),data=dat)+  
+   geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=0.8,ymax=1.0),fill="#009E73", alpha=0.3)+
+   geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=1.0,ymax=Inf),fill="#EE0000", alpha=0.3)+
+   geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=0.0,ymax=0.8),fill="#EE0000", alpha=0.3)+
+   stat_summary(fun.data=fn, geom="boxplot")+  
+   facet_grid(OM+SRR~Recruits)+
+   theme_bw(12)+ 
+   theme(legend.position="none",
+        axis.title.x=element_text(colour='NA'), 
+        axis.ticks=  element_line(colour="NA"))+
+   #geom_hline(aes(yintercept=level,linetype=Regime),
+   #                                   data=rfLn,col="darkgreen")+
+   geom_hline(aes(yintercept=Yield, group=Period),
+               linetype="solid",col="#E0FFFF",linewidth=1,data=ICESStatus)+
+   scale_y_continuous(labels=percent, limits=c(0,2.5), breaks=c(1,2))+
+   xlab("")+ylab("Difference from MSY Reference Level")+ 
+   theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))+
+   labs(subtitle="Catch") 
+
+bxC
+```
+
+**Figure `r iFig=iFig+1;iFig`** Catch
+
+```{r, boxplot-SSB, fig.height=6, fig.width=8}
+dat=as.data.frame(results$SSB,drop=T) 
+dat=cbind(dat,scen[dat$qname,])
+dat$Period=cut(dat$year,breaks=c(2004,2009,2019,2020))
+dat=subset(dat,!is.na(Period))
+dat=ddply(dat,.(OM,SRR,Recruits,Period), with, data.frame(data=filterLims(data)))
+dat=transform(dat,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("AR","Regime"),labels=c("Random\nRec. trend","Historical\nRec. trend")))
+
+bxS=ggplot(aes(x=Period,group=Period,qname,y=data),data=dat)+  
+   geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=1.0,ymax=Inf),fill="#009E73", alpha=0.3)+
+   geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=0.0,ymax=1.0),fill="#EE0000", alpha=0.3)+
+   stat_summary(fun.data=fn, geom="boxplot")+  
+   facet_grid(OM+SRR~Recruits)+
+   theme_bw(12)+ 
+   theme(legend.position="none",
+        axis.title.x=element_text(colour='NA'), 
+        axis.ticks=  element_line(colour="NA"))+
+   geom_hline(aes(yintercept=SSB),
+                    linetype="solid",col="#E0FFFF",linewidth=1,data=ICESStatus )+
+   #geom_hline(aes(yintercept=1),col="darkgreen")+
+  #geom_hline(aes(yintercept=SSB),linetype=1,colour="darkred",data=vrgLn)+
+   scale_y_continuous(labels=percent, limits=c(0,2.5), breaks=c(1,2))+
+   xlab("")+ylab("Difference from BMSY Reference Level")+ 
+   theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))+
+   labs(subtitle=expression("Status"["SSB"]))
+
+bxS
+```
+
+**Figure `r iFig=iFig+1;iFig`** SSB
+
+```{r, boxplot-F, fig.height=6, fig.width=8}
+dat=as.data.frame(results$F,drop=T) 
+dat=cbind(dat,scen[dat$qname,])
+dat$Period=cut(dat$year,breaks=c(2004,2009,2019,2020))
+dat=subset(dat,!is.na(Period))
+dat=ddply(dat,.(OM,SRR,Recruits,Period), with, data.frame(data=filterLims(data)))
+dat=transform(dat,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("AR","Regime"),labels=c("Random\nRec. trend","Historical\nRec. trend")))
+
+bxF=ggplot(aes(x=Period,group=Period,qname,y=data),data=dat)+  
+   geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=1.0,ymax=Inf),fill="#EE0000", alpha=0.3)+
+   geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=0.0,ymax=1.0),fill="#009E73", alpha=0.3)+
+   stat_summary(fun.data=fn, geom="boxplot")+  
+   facet_grid(OM+SRR~Recruits,scales="free",space="free")+
+   theme_bw(12)+ 
+   theme(legend.position="none",
+        axis.title.x=element_text(colour='NA'), 
+        axis.ticks=  element_line(colour="NA"))+
+   scale_y_continuous(labels=percent, limits=c(0,2.5), breaks=c(1,2))+
+   geom_hline(aes(yintercept=F),
+                     linetype="solid",col="#E0FFFF",linewidth=1,data=ICESStatus )+
+   #geom_hline(aes(yintercept=1),col="darkgreen")+
+   xlab("")+ylab("Difference from FMSY Reference Level")+ 
+   theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))+
+   labs(subtitle=expression("Status"["F"]))
+
+bxF
+```
+
+**Figure `r iFig=iFig+1;iFig`** F
+
+
+```{r, boxplot-Recruits, fig.height=6, fig.width=8}
+dat=as.data.frame(results$Recruits,drop=T) 
+dat=cbind(dat,scen[dat$qname,])
+dat$Period=cut(dat$year,breaks=c(2004,2009,2019,2020))
+dat=subset(dat,!is.na(Period))
+dat=ddply(dat,.(OM,SRR,Recruits,Period), with, data.frame(data=filterLims(data)))
+dat=transform(dat,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("AR","Regime"),labels=c("Random\nRec. trend","Historical\nRec. trend")))
+
+bxR=ggplot(aes(x=Period,group=Period,qname,y=data),data=dat)+  
+   stat_summary(fun.data=fn, geom="boxplot")+  
+   facet_grid(OM+SRR~Recruits)+
+   theme_bw(12)+ 
+   theme(legend.position="none",
+        axis.title.x=element_text(colour='NA'), 
+        axis.ticks=  element_line(colour="NA"))+
+   #geom_hline(aes(yintercept=level,linetype=Regime),
+   #                                 data=rfLn,col="darkgreen")+
+   #geom_hline(aes(yintercept=Recruits),linetype=1,colour="darkred",data=vrgLn)+
+   scale_y_continuous(labels=percent)+
+   xlab("")+ylab("Difference from RMSY Reference Level")+ 
+   theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))+
+   labs(subtitle="Recruits")
+
+bxR
+```
+
+**Figure `r iFig=iFig+1;iFig`** Recruits
+
+
+```{r, boxplot-BRebuild, fig.height=6, fig.width=8}
+load("../data/results/results.RData")
+dat=as.data.frame(mcf(results$Rebuild),drop=T) 
+dat$qname=gsub("h=0\\.9","High h",dat$qname)
+dat=dat %>% separate(qname, into=c("OM", "SRR", "Recruits"), sep="\\.")
+
+dat$Period=cut(dat$year,breaks=c(2004,2009,2019,2020))
+dat=subset(dat,!is.na(Period))
+dat=ddply(dat,.(OM,SRR,Recruits,Period), with, data.frame(data=filterLims(data)))
+dat=transform(dat,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                           labels=c("Historical\nRec. trend","Random\nRec. trend")))
+gt=transform(gt,OM =factor(OM,levels=c("Reference","North Sea", "Barents Sea")),
+                           SRR=factor(SRR,levels=c("Prior","h=0.9","Depensation")))
+
+bxBr=ggplot(aes(x=Period,group=Period,qname,y=data),data=dat)+  
+   stat_summary(fun.data=fn, geom="boxplot")+  
+   facet_grid(OM+SRR~Recruits)+
+   theme_bw(12)+ 
+   theme(legend.position="none",
+        axis.title.x=element_text(colour='NA'), 
+        axis.ticks=  element_line(colour="NA"))+
+   geom_hline(aes(yintercept=0), col="darkgreen",linewidth=1)+
+   geom_hline(aes(yintercept=gt),col="darkred",linewidth=1,data=gt)+
+   scale_y_continuous(breaks=c(-10,0,10))+
+   xlab("")+ylab(expression("Years to B"["MSY"]))+ 
+   theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))+
+   labs(subtitle="BRebuild")
+
+bxBr
+```
+
+**Figure `r iFig=iFig+1;iFig`** BRebuild
+
+```{r, boxplot-Forage, fig.height=6, fig.width=8}
+dat=as.data.frame(results$Forage,drop=T) 
+dat=cbind(dat,scen[dat$qname,])
+dat$Period=cut(dat$year,breaks=c(2004,2009,2019,2020))
+dat=subset(dat,!is.na(Period))
+dat=ddply(dat,.(OM,SRR,Recruits,Period), with, data.frame(data=filterLims(data)))
+dat=transform(dat,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                           labels=c("Historical\nRec. trend","Random\nRec. trend")))
+
+bxFr=ggplot(aes(x=Period,group=Period,qname,y=data),data=dat)+  
+   stat_summary(fun.data=fn, geom="boxplot")+  
+   facet_grid(OM+SRR~Recruits,scales="free",space="free")+
+   theme_bw(12)+ 
+   theme(legend.position="none",
+        axis.title.x=element_text(colour='NA'), 
+        axis.ticks=  element_line(colour="NA"))+
+   geom_hline(aes(yintercept=1),  col="darkgreen",linewidth=1)+
+   geom_hline(aes(yintercept=0.5),col="darkred",  linewidth=1)+
+   scale_y_continuous(labels=percent, breaks=c(1,2))+
+   xlab("")+ylab("Difference from MSY Reference Level")+ 
+   theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))+
+   labs(subtitle="Forage")
+
+bxFr
+```
+
+**Figure `r iFig=iFig+1;iFig`** Forage
+
+
+```{r, rfvg}
+vg=data.frame(ref=unlist(c(vrgLn[1,3:5])),qname=names(vrgLn[,3:5])) 
+
+rf=data.frame(ref=rfLn[2,2],qname=c("Forage","SSB","Recruits"))
+```
+
+
+```{r, boxplot-ABI, fig.height=6, fig.width=8}
+dat=as.data.frame(FLQuants(results$ABI),drop=T) 
+dat=cbind(dat,scen[dat$qname,])
+dat$Period=cut(dat$year,breaks=c(2004,2009,2019,2020))
+dat=subset(dat,!is.na(Period))
+dat=ddply(dat,.(OM,SRR,Recruits,Period), with, data.frame(data=filterLims(data)))
+dat=transform(dat,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                           labels=c("Historical\nRec. trend","Random\nRec. trend")))
+
+bxA=ggplot(aes(x=Period,group=Period,qname,y=data),data=dat)+  
+   stat_summary(fun.data=fn, geom="boxplot")+  
+   facet_grid(OM+SRR~Recruits)+
+   theme_bw(12)+ 
+   theme(legend.position="none",
+        axis.title.x=element_text(colour='NA'), 
+        axis.ticks=  element_line(colour="NA"))+
+   geom_hline(aes(yintercept=1),  col="darkgreen",linewidth=1)+
+   geom_hline(aes(yintercept=0.5),col="darkred"  ,linewidth=1)+
+   scale_y_continuous(labels=percent,breaks=c(1,3))+
+   xlab("")+ylab("Difference from MSY Reference Level")+ 
+   theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))+
+   labs(title=expression("ABI"["MSY"]))
+
+bxA
+```
+
+**Figure `r iFig=iFig+1;iFig`** ABI
+
+```{r, bx1, fig.height=14, fig.width=12}
+p1 =ggarrange(bxS,bxF,bxC,  ncol=3,nrow=1,common.legend=TRUE)
+
+ggsave("fig6a.png", p1, width=12, height=8, dpi=300) 
+```
+
+```{r, bx2, fig.height=14, fig.width=12}
+p2 =ggarrange(bxBr,bxA,bxFr,ncol=3,nrow=1,common.legend=TRUE)
+ggsave("fig6b.png", p2, width=12, height=8, dpi=300) 
+```
+
+```{r, bxs, fig.height=14, fig.width=12}
+p12=ggarrange(bxS,bxF,bxC,bxBr,bxA,bxFr,ncol=3,nrow=2,common.legend=TRUE) 
+p12 
+```
+
+
+```{r, ABI, fig.height=6, fig.width=8}
+for (i in seq(dim(scen)[1])){
+  refpts(eqs[[scen[i,"OM"]]][[scen[i,"SRR"]]])["msy",
+            c("ssb","rec","yield","harvest")]=
+    unlist(c(subset(msy,OM==scen[i,"OM"]&SRR==scen[i,"SRR"])[,3:6]))}
+
+
+for (i in seq(dim(scen)[1])){
+  refpts(eqs[[scen[i,"OM"]]][[scen[i,"SRR"]]])["msy",
+            c("ssb","rec","yield","harvest")]=
+    unlist(c(subset(msy,OM==scen[i,"OM"]&SRR==scen[i,"SRR"])[,3:6]))}
+
+abi=mlply(seq(10), function(.id) 
+  ABI(robustness[[.id]],eqs[[scen[.id,"OM"]]][[scen[.id,"SRR"]]]))
+
+plot(FLQuants(abi))+geom_hline(aes(yintercept=1))
+```
+
+**Figure `r iFig=iFig+1;iFig`** ABI 
+
+```{r, rbld, eval=FALSE}
+load("../data/om/robustnessEq.RData")
+
+rebuildInterp<-function(x,y,new){
+  f=splinefun(x, y)
+  f(new)} 
+
+scen=data.frame(OM =c(rep("Reference",3),"Barents Sea","North Sea"),
+                SRR=c("Prior","h=0.9","Depensation","Prior","Prior"))
+
+rbt=mdply(scen, function(OM,SRR) {
+             eq   =eqs[[OM]][[SRR]]
+             rb   =FLCandy:::tryIt(rebuild(eq))
+             r2   =FLCandy:::tryIt(rebuildTime(rb))
+             FLCandy:::tryIt(return(cbind(r2,gt=c(gt(eq)))))})
+             
+rbt2=ddply(rbt, .(OM,SRR), with, rebuildInterp(initial,year,ssb(oms[[OM[1]]][[SRR[1]]])))
+
+
+ggplot(subset(rb2,!is.na(year)))+geom_line(aes(initial,year))
+
+rebuildInterp(rb2$initial,rb2$year,.5)
+  
+ggplot(rbt)+
+  geom_line(aes(Year,Initial,col=SRR))+
+  geom_vline(aes(xintercept=V1),data=gtime)+
+  facet_grid(factor(OM,levels=c("Reference","High M",
+                                "Environmental\nDriver"))~.)+
+  #coord_cartesian(xlim=c(0,12))+
+  xlab("Time to recovery to BMSY")+ylab("Initial Depletion (SSB/Bmsy)")
+  
+x=FLCandy:::rebuild(eqs[["Reference"]][["Prior"]],n=201)
+y=FLCandy:::rebuildTime(eqs[["Reference"]][["Prior"]])
+
+rcv =FLCandy:::rebuild(eq,n=201)
+rcv2=FLCandy:::rebuildTime(rcv)
+brbl=FLQuant(FLCandy:::rebuildInterp(rcv[,1],rcv[,2],
+                           ssb(reference[["Short Cut"]])%/%refpts(eq)["msy","ssb"]),
+             dimnames=dimnames(ssb(reference[["Short Cut"]])))
+eq=eqs[[1]][[1]]
+
+bmsy=refpts(eq)["msy","ssb"] #ssb(eq)[,dimnames(catch(eq))$year[c(catch(eq))==max(catch(eq))]]
+
+rcv =llply(eqs, function(x) 
+        llply(x,function(x) FLCandy:::rebuildTime(x,
+            FLCandy:::rebuild(x,n=201))))
+                            
+brbl=FLQuant(FLCandy:::rebuildInterp(rcv[,1],rcv[,2],
+                             ssb(x)%/%bmsy),
+               dimnames=dimnames(ssb(x)))
+```
+
+```{r, ts2}
+load("../data/results/results.RData") 
+
+myColours=c(
+  "reference"="#4e9a5b",
+  "target"   ="#4e9a5b",
+  "limit"    ="#b03a3a",
+  "main"     ="#2c3e50")
+
+rectFills=list(
+  list(xmax=2020, fill="#E0FFFF"),
+  list(xmax=2018, fill="#AFEEEE"),
+  list(xmax=2010, fill="#90D5FF"))
+
+p1=plot(FLQuants(map(results, ~ .x[[1]])),iter=23)+
+  geom_rect(aes(xmin=-Inf,xmax=2020,ymin=-Inf,ymax=Inf),fill="#E0FFFF",alpha=0.1)+
+  geom_rect(aes(xmin=-Inf,xmax=2018,ymin=-Inf,ymax=Inf),fill="#AFEEEE",alpha=0.1)+
+  geom_rect(aes(xmin=-Inf,xmax=2010,ymin=-Inf,ymax=Inf),fill="#90D5FF",alpha=0.1)+
+  labs(title="b) Historical recruitment trend (Epistemic)") +
+  facet_grid(factor(qname, levels=c( "Recruits", "F", "SSB", "Catch","Forage", "ABI","Rebuild")) ~ ., 
+           scales="free_y") +
+  geom_hline(aes(yintercept=1),   col="grey40", linewidth=0.5) +
+  geom_hline(aes(yintercept=ref), col=myColours["target"],linewidth=0.5, data=rf) +
+  geom_hline(aes(yintercept=ref), col=myColours["limit"], linewidth=0.5, data=vg) +
+  scale_colour_manual(values=myColours["main"]) +
+  scale_x_continuous(limits=c(1995, 2020), breaks=seq(2000, 2020, 10),expand=c(0, 0)) +
+  xlab("Year") +
+  theme_bw(base_size=12) +
+  theme(
+  strip.text.y=element_text(angle=0, hjust=0, size=11, face="bold"),
+  strip.background=element_rect(fill="grey95", color="grey80"),
+  panel.grid.minor=element_blank(),
+  panel.grid.major.x=element_line(color="grey90", size=0.5),
+  panel.grid.major.y=element_line(color="grey90", size=0.5),
+  legend.position="none",
+  plot.title=element_text(size=14, face="bold", margin=margin(b=10)),
+  axis.title.x=element_text(size=11, margin=margin(t=8)),
+  axis.title.y=element_text(size=11, margin=margin(r=8)),
+  panel.spacing.y=unit(0.3, "cm"))+ 
+  facetted_pos_scales(y=list(
+    scale_y_continuous(limits=c(0, 3),expand=c(0, 0)),
+    scale_y_continuous(limits=c(0, 3),expand=c(0, 0)),
+    scale_y_continuous(limits=c(0, 3),expand=c(0, 0)),
+    scale_y_continuous(limits=c(0, 3),expand=c(0, 0)),
+    scale_y_continuous(limits=c(0, 3),expand=c(0, 0)),
+    scale_y_continuous(limits=c(0, 3),expand=c(0, 0)),
+    scale_y_continuous(limits=c(-10,10))))
+
+p1$layers
+p1$layers[[3]]$aes_params$alpha=1.0
+p1$layers[[3]]$aes_params$fill="pink" 
+p1$layers[[1]]$aes_params$fill="orchid"
+p1$layers=c(p1$layers[c(6,7,8,3,1)],p1$layers[-c(6,7,8,3,1)])
+
+p2=plot(FLQuants(map(results, ~ .x[[6]])), iter=23) +
+  lapply(rectFills, function(r) {
+    geom_rect(aes(xmin=-Inf, xmax=r$xmax, ymin=-Inf, ymax=Inf),
+             fill=r$fill, alpha=0.1)}) +
+  labs(title="b) Historical recruitment trend (Epistemic)") +
+  facet_grid(factor(qname, levels=c("Recruits", "F", "SSB", "Catch", "Forage", "ABI", "Rebuild")) ~ .,
+           scales="free_y") +
+  geom_hline(aes(yintercept=1), col="grey40", linewidth=0.5) +
+  geom_hline(aes(yintercept=ref), col=myColours["target"], linewidth=0.5, data=rf) +
+  geom_hline(aes(yintercept=ref), col=myColours["limit"], linewidth=0.5, data=vg) +
+  # Scales and coordinates
+  scale_colour_manual(values=myColours["main"]) +
+  scale_x_continuous(
+    limits=c(1995, 2020),
+    breaks=seq(2000, 2020, 10),
+    expand=c(0, 0))+
+  xlab("Year") +
+  theme_bw(base_size=12) +
+  theme(
+    strip.text.y=element_text(angle=0, hjust=0, size=11, face="bold"),
+    strip.background=element_rect(fill="grey95", color="grey80"),
+    panel.grid.minor=element_blank(),
+    panel.grid.major=element_line(color="grey90", linewidth=0.5),
+    legend.position="none",
+    plot.title=element_text(size=14, face="bold", margin=margin(b=10)),
+    axis.title=element_text(size=11, margin=margin(t=8, r=8)),
+    panel.spacing.y=unit(0.3, "cm"))+
+  facetted_pos_scales(y=c(
+    rep(list(scale_y_continuous(limits=c(0, 3), expand=c(0, 0))), 6),
+    list(scale_y_continuous(limits=c(-10, 10)))))
+
+# Modify layer aesthetics
+p2$layers[[3]]$aes_params$alpha=1.0   
+p2$layers[[3]]$aes_params$fill="pink" 
+p2$layers[[1]]$aes_params$fill="orchid"
+p2$layers=c(p2$layers[c(6,7,8,3,1)], p2$layers[-c(6,7,8,3,1)])
+
+combinedPlot=p2+p1+ 
+  plot_layout(ncol=2) +
+  plot_annotation(
+    caption="Dashed green line: Target, Red line: Limit")
+
+combinedPlot
+
+ggsave("fig4.png", combinedPlot, width=12, height=8, dpi=300)
+```
+
+
+```{r, fig.height=10,gig.width=12}
+dtS=mdply("SSB", function(x) cbind(what=x,ldply(results[[x]], 
+                              function(x) as.data.frame(FLQuants(x[,ac(2004:2020)]),drop=T)))) 
+dtS=cbind(dtS,scen[dtS$.id,])[,-c(1,3,7)]
+dtS$Period=cut(dtS$year,breaks=c(2003,2009,2019,2020))
+
+dtF=mdply("F", function(x) cbind(what=x,ldply(results[[x]], 
+                              function(x) as.data.frame(FLQuants(x[,ac(2004:2020)]),drop=T)))) 
+dtF=cbind(dtF,scen[dtF$.id,])[,-c(1,3,7)]
+dtF$Period=cut(dtF$year,breaks=c(2003,2009,2019,2020))
+
+dtK=merge(dtS[,-1],dtF[,-c(1,8)],by=names(dtS)[c(2:3,5:7)])
+names(dtK)[6]="stock" 
+names(dtK)[8]="harvest"
+
+dtK=mutate(dtK,kobe:::prob(stock,harvest),
+               orange=as.numeric((overFishing==1&overFished==0)),
+               yellow=yellow-orange)
+dtK=transform(dtK,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("AR","Regime"),
+                                           labels=c("Random\nRec. trend","Historical\nRec. trend")))
+
+dtK=ddply(dtK,.(year,OM,SRR,Recruits),with, 
+      data.frame(red   =mean(red),
+                 green =mean(green),
+                 yellow=mean(yellow),
+                 orange=mean(orange)))
+p1=ggplot(dtK)+
+  geom_ribbon(aes(year,ymin=0,ymax=red),fill="red")+
+  geom_ribbon(aes(year,ymin=red,ymax=red+yellow),fill="yellow")+
+  geom_ribbon(aes(year,ymin=red+yellow,ymax=red+yellow+orange),fill="orange")+
+  geom_ribbon(aes(year,ymin=red+yellow+orange,ymax=1),fill="green")+
+  facet_nested(OM+SRR~Recruits,
+               scale="free", nest_line=TRUE, solo_line=TRUE,labeller=label_wrap_gen(width=10))+
+  xlab("Year")+
+  ylab("P()")
+p1
+
+ggsave("fig5.png", p1, width=10, height=10, dpi=300) 
+```
+
+```{r, targets, fig.height=4,gig.width=6}
+tarS=ddply(dtS, .(Period,OM,SRR,Recruits), with, cut(ecdf(data)(1),breaks=c(0,0.66,0.5,1)))
+tarS=transform(tarS,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                           labels=c("Historical\nRec. trend","Random\nRec. trend")))
+ggplot(tarS)+
+  geom_point(aes(Period,1,col=V1),size=5)+
+  facet_grid(OM+SRR~Recruits)+
+  scale_color_manual(values=c("darkgreen","gold","red"))+
+  theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))
+
+tarS =merge(tarS, data.frame(V1=unique(tarS$V1), colour=c("red","gold","green")))
+```
+
+```{r, fig.height=4,gig.width=6}
+tarF=ddply(dtF, .(Period,OM,SRR,Recruits), with, cut(ecdf(data)(1),breaks=c(0,0.33,0.5,1)))
+tarF=transform(tarF,OM    =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                           labels=c("Historical\nRec. trend","Random\nRec. trend")))
+ggplot(tarF)+
+  geom_point(aes(Period,1,col=V1),size=5)+
+  facet_grid(OM+SRR~Recruits)+
+  scale_color_manual(values=c("red","gold","darkgreen"))+
+  theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))
+
+tarF =merge(tarF, data.frame(V1=unique(tarF$V1), colour=c("gold","green","red")))
+```
+
+```{r, fig.height=4,gig.width=6}
+dtY=mdply("Catch", function(x) cbind(what=x,ldply(results[[x]], 
+                              function(x) as.data.frame(FLQuants(x[,ac(2004:2020)]),drop=T)))) 
+dtY=cbind(dtY,scen[dtY$.id,])[,-c(1,3,7)]
+dtY$Period=cut(dtY$year,breaks=c(2003,2009,2019,2020))
+tarY=ddply(dtY, .(Period,OM,SRR,Recruits), with, cut(median(data),breaks=c(0,0.8,1,10)))
+tarY=transform(tarY,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                    SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                    Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                             labels=c("Historical\nRec. trend","Random\nRec. trend")))
+ggplot(tarY)+
+  geom_point(aes(Period,1,col=V1),size=5)+
+  facet_grid(OM+SRR~Recruits)+
+  scale_color_manual(values=c("gold","darkgreen","red"))+
+  theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))
+
+tarY =merge(tarY, data.frame(V1=unique(tarY$V1), colour=c("gold","green","red")))
+```
+
+```{r, fig.height=4,gig.width=6}
+library(tidyr)
+
+load("../data/results/results.RData")
+
+dtB=mdply(names(results["Rebuild"]), function(x) cbind(what=x,ldply(results[[x]], 
+                  function(x) as.data.frame(FLQuants(x[,ac(2004:2020)]),drop=T))))[,-c(1,7)]
+dtB$.id=gsub("h=0\\.9","High h",dtB$.id)
+dtB=dtB %>% separate(.id, into=c("OM", "SRR", "Recruits"), sep="\\.")
+dtB$Period=cut(dtB$year,breaks=c(2003,2009,2019,2020))
+erpB=ddply(dtB, .(Period,OM,SRR,Recruits), with, cut(ecdf(data)(0),breaks=c(0,0.33,0.5,1)))  
+erpB=transform(erpB,OM    =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","High h","Depensation")),
+                  Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                           labels=c("Historical\nRec. trend","Random\nRec. trend")))
+
+ggplot(erpB)+
+  geom_point(aes(Period,1,col=V1),size=5)+
+  facet_grid(OM+SRR~Recruits)+
+  scale_color_manual(values=c("red","gold","darkgreen"))+
+  theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))
+ 
+erpB =merge(erpB, data.frame(V1=unique(erpB$V1),colour=c("green","gold","red")))
+```
+
+```{r, fig.height=4,gig.width=6}
+dtA=mdply(names(results["ABI"]), function(x) cbind(what=x,ldply(results[[x]], 
+                  function(x) as.data.frame(FLQuants(x[,ac(2004:2020)]),drop=T))))
+dtA=cbind(dtA,scen[dtA$X1,])[,-c(1:2,6)]
+dtA$Period=cut(dtA$year,breaks=c(2003,2009,2019,2020))
+erpA=ddply(dtA, .(Period,OM,SRR,Recruits), with, cut(ecdf(data)(1),breaks=c(0,0.66,0.5,1)))
+erpA=transform(erpA,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                           labels=c("Historical\nRec. trend","Random\nRec. trend")))
+ggplot(erpA)+
+  geom_point(aes(Period,1,col=V1),size=5)+
+  facet_grid(OM+SRR~Recruits)+
+  scale_color_manual(values=c("darkgreen","gold","red"))+
+  theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))
+
+erpA =merge(erpA, data.frame(V1=unique(erpA$V1), colour=c("green","gold","red")))
+```
+
+```{r, fig.height=4,gig.width=6}
+dtFr=mdply(names(results["Forage"]), function(x) cbind(what=x,ldply(results[[x]], 
+                  function(x) as.data.frame(FLQuants(x[,ac(2004:2020)]),drop=T))))
+dtFr=cbind(dtFr,scen[dtFr$.id,])[,-c(1:3,7)]
+dtFr$Period=cut(dtFr$year,breaks=c(2003,2009,2019,2020))
+erpFr=ddply(dtFr, .(Period,OM,SRR,Recruits), with, cut(ecdf(data)(1),breaks=c(0,0.66,0.5,1)))
+erpFr=transform(erpFr,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                    SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                    Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                             labels=c("Historical\nRec. trend","Random\nRec. trend")))
+ggplot(erpFr)+
+  geom_point(aes(Period,1,col=V1),size=5)+
+  facet_grid(OM+SRR~Recruits)+
+  scale_color_manual(values=c("darkgreen","gold","red"))+
+  theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))
+
+erpFr=merge(erpFr,data.frame(V1=unique(erpFr$V1),colour=c("green","gold","red")))
+```
+
+
+```{r, limits, fig.height=4,gig.width=6}
+dtA=mdply(names(results["ABI"]), function(x) cbind(what=x,ldply(results[[x]], 
+                  function(x) as.data.frame(FLQuants(x[,ac(2004:2020)]),drop=T))))
+dtA=cbind(dtA,scen[dtA$X1,])[,-c(1:2,6)]
+dtA$Period=cut(dtA$year,breaks=c(2003,2009,2019,2020))
+limA=ddply(dtA, .(Period,OM,SRR,Recruits), with, cut(ecdf(data)(0.5),breaks=c(-0.1,0.05,1)))
+limA=transform(limA,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                  SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),
+                  Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                           labels=c("Historical\nRec. trend","Random\nRec. trend")))
+ggplot(limA)+
+  geom_point(aes(Period,1,col=V1),size=5)+
+  facet_grid(OM+SRR~Recruits)+
+  scale_color_manual(values=c("darkgreen","red"))+
+  theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))
+
+limA =merge(limA, data.frame(V1=unique(limA$V1), colour=c("red","green")))
+```
+
+```{r, fig.height=4,gig.width=6}
+dtFr=mdply(names(results["Forage"]), function(x) cbind(what=x,ldply(results[[x]], 
+                  function(x) as.data.frame(FLQuants(x[,ac(2004:2020)]),drop=T))))
+dtFr=cbind(dtFr,scen[dtFr$.id,])[,-c(1:3,7)]
+dtFr$Period=cut(dtFr$year,breaks=c(2003,2009,2019,2020))
+limFr=ddply(dtFr, .(Period,OM,SRR,Recruits), with, cut(ecdf(data)(0.5),breaks=c(-1,0.05,1)))
+limFr=transform(limFr,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                    SRR     =factor(SRR,     levels=c("Prior","h=0.9","Depensation")),                                      Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                             labels=c("Historical\nRec. trend","Random\nRec. trend")))
+ggplot(limFr)+
+  geom_point(aes(Period,1,col=V1),size=5)+
+  facet_grid(OM+SRR~Recruits)+
+  scale_color_manual(values=c("darkgreen","red"))+
+  theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))
+
+limFr=merge(limFr,data.frame(V1=unique(limFr$V1),colour=c("red","green")))
+```
+
+```{r, fig.height=4,gig.width=6}
+library(tidyr)
+
+load("../data/results/results.RData")
+
+dtB=mdply(names(results["Rebuild"]), function(x) cbind(what=x,ldply(results[[x]], 
+                  function(x) as.data.frame(FLQuants(x[,ac(2004:2020)]),drop=T))))[,-c(1,7)]
+dtB$.id=gsub("h=0\\.9","High h",dtB$.id)
+
+dtB=dtB %>% separate(.id, into=c("OM", "SRR", "Recruits"), sep="\\.")
+dtB$Period=cut(dtB$year,breaks=c(2003,2009,2019,2020))
+limB=ddply(dtB, .(Period,OM,SRR,Recruits), with, cut(ecdf(data/8.5)(1),breaks=c(0,0.95,1)))
+limB=transform(limB,OM      =factor(OM,      levels=c("Reference","North Sea", "Barents Sea")),
+                    SRR     =factor(SRR,     levels=c("Prior","High h","Depensation")),
+                    Recruits=factor(Recruits,levels=c("Regime","AR"),
+                                             labels=c("Historical\nRec. trend","Random\nRec. trend")))
+ggplot(limB)+
+  geom_point(aes(Period,1,col=V1),size=5)+
+  facet_grid(OM+SRR~Recruits)+
+  scale_color_manual(values=c("red","darkgreen"))+
+  theme(#axis.title.y=element_blank(),
+         axis.text.x =element_text(angle=45, hjust=1))
+
+limB =merge(limB, data.frame(V1=unique(limB$V1), colour=c("green","red")))
+```
+
+
+```{r}
+tar=rbind(cbind(What="Target",rbind(
+          cbind(Ref="SSB",  tarS), 
+          cbind(Ref="F",    tarF), 
+          cbind(Ref="Yield",tarY))))
+
+erp=rbind(cbind(What="ERP Target",rbind(
+          cbind(Ref="ABI",    erpA),
+          cbind(Ref="Rebuild",erpB),  
+          cbind(Ref="Forage", erpFr)))) 
+
+lim=rbind(cbind(What="ERP Limit",rbind(
+          cbind(Ref="ABI",    limA),
+          cbind(Ref="Rebuild",limB), 
+          cbind(Ref="Forage", limFr))))
+```
+
+```{r,fig.height=8,fig.width=12}
+save(tar,erp,lim,file="C:/active/tmp/t.RData")
+load("C:/active/tmp/t.RData")  
+
+refs=rbind(cbind(Group="Target",    tar), 
+           cbind(Group="Target ERP",erp),
+           cbind(Group="Limit ERP", lim))
+refs$SRR=gsub("h=0\\.9","High h",refs$SRR) 
+
+refs$Ref=factor(refs$Ref,levels=c("SSB","F","Yield","ABI","Forage","Rebuild"))
+save(tar,erp,lim,refs,file="C:/active/tmp/t.RData") 
+
+refs$What=factor(refs$What,levels=c("Target","ERP Target","ERP Limit"))
+
+p1=ggplot(refs)+
+  geom_point(aes(Ref,1,colour=colour),size=8)+
+  #facet_grid(Recruits+OM+SRR~Period)+
+  facet_nested(Recruits+OM+SRR~Period+What,
+               scale="free", nest_line=TRUE, solo_line=TRUE,labeller=label_wrap_gen(width=32))+
+  theme(legend.position="bottom",
+        axis.text.y=element_blank(), 
+        axis.ticks.y=element_blank(),
+        axis.title.y=element_blank(), 
+        axis.text.x=element_text(angle=45, hjust=1))+
+  scale_color_manual(values=c("gold","green","red"))
+p1
+
+ggsave("fig7.png", p1, width=10, height=12, dpi=300) 
+```
+
+[Back to Top](#top)
+
+# Software Version {#pkgs}
+
+-   `r version$version.string`
+
+-   FLCore: `r packageVersion('FLCore')`
+
+-   ggplotFL: `r packageVersion('ggplotFL')`
+
+-   FLBRP: `r packageVersion('FLBRP')`
+
+-   plyr: `r packageVersion('plyr')`
+
+-   ggpubr: `r packageVersion('ggpubr')`
+
+-   scales: `r packageVersion('scales')`
+
+-   **Compiled**: `r date()`
+
+-   **Git Hash**:
+    `r system("git log --pretty=format:'%h' -n 1", intern=TRUE)`
+
+[Back to Top](#top)
+
+# Funding {#funds}
+
+[Back to Top](#top)
+
+# References {#bib}
+
+[Back to Top](#top)
+
+# 

@@ -1,0 +1,213 @@
+---
+title: "Ecological Reference Points"
+subtitle: "**North East Atlantic Mackerel**: ICES Assessment"
+author: "L Kell & J Bentley"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+mathjax: TRUE
+tags: FLR FLCore introduction
+license: Creative Commons Attribution-ShareAlike 4.0 International Public License
+bibliography: ../refs.bib
+#knit: (function(inputFile, encoding) {
+#  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../outputs/html") })
+---
+
+
+```{r, echo=FALSE, eval=FALSE}
+setwd("C:/flrpapers/erp_nea_mackerel/Rmd")
+```
+
+# Introduction
+
+The Operating Model is based on the ICES stock assessment that was available at the start of the project [@ICES2022mac]. All coding is done using R [@R] and FLR [@kell2007flr] in Rmarkdown [@Rmdbook], and summarised in as a vignette. The information (data, files, etc.) required to re-do the analysis, is  available at **???**, including the ICES assessment data set, and the inputs and outputs from the ecosystem models. 
+
+Code for cleaning the input data, and R libraries used for the analysis, are contained in the 'Rmd' files such as this one. Only Key steps in the analysis are shown in the documents generated, code used for plotting are not echoed in the output but can be found in the 'Rmd' file. 
+
+Advantages of making the research reproducible in 'Rmd' are that it is easier for others to check it, adjustments to be made to the code, data updated, before publishing analysis can be checked row cleaning the raw data through to generating final figures and tables, the analysis can be shared with others and code examples can be provided to other who wish to extend the research.
+
+This vignette is divided into sections for [Installation](#install) of the required libraries, sourcing bespoke functions, and loading the data, before the [ICES Assessment](#ices) is ran and summarised. 
+
+Details on [Funding](#funds), [Software Versions](#pkgs) and[References](#bib) can be found at the end of the document.
+
+
+
+```{r, knitr, eval=TRUE, warning=FALSE, cache=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+# getwd()
+library(knitr)
+
+opts_chunk$set(comment   =NA, 
+               warning   =FALSE, 
+               message   =FALSE, 
+               error     =FALSE, 
+               echo      =FALSE, 
+               eval      =TRUE,
+               cache     =TRUE,
+               cache.path="cache/1_ICES/",
+               fig.path  ="../figs/1_ICES-",
+               fig.width =8,
+               fig.height=6,
+               dev       ="png")
+iFig=0
+iTab=0
+```
+
+[](#top)
+
+# Installation {#install}
+
+Libraries (i.e. packages) can be installed from gihtub using the `remotes ` package:
+
+```{r, eval=FALSE, echo=TRUE}
+install.packages("remotes")
+
+library(remotes)
+
+install.packages("ggplot2")
+install.packages("plyr")
+
+remotes::install_github("flr/FLCore")
+remotes::install_github("flr/ggplotFL")
+
+install.packages("RTMB")
+
+remotes::install_github('fishfollower/SAM/stockassessment', ref='components')
+remotes::install_github("flr/FLfse/FLfse")
+```
+
+```{r, pkgs, cache=FALSE, echo=TRUE}
+library(FLCore) 
+library(ggplotFL)
+library(FLAssess)
+
+library(plyr)
+
+library(stockassessment)
+library(FLfse)
+
+theme_set(theme_bw(16))
+```
+
+### Bespoke functions
+
+Functions are used to run key parts of the analysis, this makes it easier to document and debug code, and replicate key steps. 
+The ICES assessment is run uisng the function 'runSam', this means that the assessment can be redone in a comparable way when new data become available or based on alternative hypotheses, and steps are documented.  
+
+```{r, source, echo=TRUE}
+source("../R/runSam.R")  
+```
+
+[Back to Top](#top)
+
+# ICES Assessment {#ices}
+
+## Reference Points
+
+ICES advice framework is based on achieving maximum sustainable yield ($MSY$) and the precautionary approach ($PA$). 
+
+For $MSY$ reference points provided are $MSY_{Btrigger}$ set equal to $B_{pa}$, and $F_{MSY}$ from stochastic simulations Reference points [@ICES2023macmse]. PA reference points are $B_{lim}$ (equal to $B_{loss}$), $B_{pa}$ ($B_{lim}e^{1.65\sigma}$, where sigma = 0.15), $F_{lim}$ (the $F$ that will generate $B_{lim}$), and $F_{pa}$ (based on the$F$ that provides a $95\%$ chance that $SSB \gt B_{lim}$). 
+
+Reference point are updated at a benchmark and therefore may change
+
+```{r, data, echo=TRUE}
+load("../data/inputs/ices/icesRefs.RData")
+```
+
+```{r, refs, fig.width=8}
+ref2021=FLPar(laply(refs,window, end=2021, start=2021))
+dimnames(ref2021)$params=c("Flim","Fpa","Fmsy","Fcap","Blim","Bpa","MSYBtrigger")
+
+names(refs)=c("Flim","Fpa","Fmsy","Fcap","Blim (kt)","Bpa (kt)","MSYBtrigger (kt)")
+refs[5:7]=llply(refs[5:7], function(x) x/1000)
+plot(refs[c(1,5,2,6,3,7)])+
+  facet_wrap(~qname,scale="free",ncol=2)
+```
+
+**Figure `r iFig=iFig+1;iFig`** ICES reference points
+
+## ICES Advice Rule
+
+The ICES advice rule is implemented as a harvest control rule (HCR) based on two biomass reference points, $MSY_{Btrigger}$  a trigger reference point, $B_{lim}$ and a limit reference point [@ICES2022ar]. ICES recommends that the two biomass reference should depend on each other, e.g. be fractions or multiples of a common reference point such as like $B_{MSY}$. Although in the ICES system $B_{MSY}$ is not defined, and limits, thresholds and targets have different objectives, i.e. limits should be avoided with high probability, thresholds are a warning that something should be done before something bad happens, and a target is something that should be achieved on average. 
+
+To ensure robustness, i.e. that objectives are met despite uncertainty limits, thresholds and targets should ideally be independent of each other. For example, when information is incomplete and the variables of interest are latent, however, as in stock assessment there is often sufficient information to estimate key parameters. For example, in an age-based assessment, the production function and hence $MSY$ reference points are largely determined by fixed parameters [e.g. natural mortality, steepness and growth and fecundity-at-age, @mangel2013perspective] and alternative choices may provide equally good fits \citep{bartholomew2011latent}. 
+
+```{r, ices-ar, fig.width=8, fig.height=4, echo=FALSE}
+ggplot(data.frame(x=c(0,0.5,2),y=c(0,1,1)))+
+  geom_line(aes(x,y))+
+  geom_vline(aes(xintercept=0.5),col="red", linetype=2)+
+  geom_hline(aes(yintercept=1),  col="blue",linetype=2)+
+  xlab("SSB")+ylab("Fishing Mortality")+
+  scale_x_continuous(breaks=0.5,labels=expression(MSY[Btrigger]))+
+  scale_y_continuous(breaks=1.0,labels=expression(F[MSY]), limits=c(0,1.25))
+```
+
+**Figure `r iFig=iFig+1;iFig`** Harvest Control Rule that implements the ICES advice rule.
+
+## Assessment
+
+Historical estimates of spawning stock biomass (SSB), fishing mortality (F), catch and recruitment, along with the recen estimates of $MSY_{Btrigger}$, $F_{MSY}$, $B_{lim}$, $B_{pa}$, and $F_{lim}$.
+
+The assessment is rerun using the 'runSam' script, from the assessment working group
+
+```{r, sam, echo=TRUE}
+ices   =runSam("nm",dir="../data/inputs/ices")[[1]]
+```
+
+```{r, ts, fig.height=8}
+plot(ices)+  
+   geom_flpar(data=FLPars('SSB' =ref2021[c("Blim","Bpa","MSYBtrigger")]),x=1980)+
+   geom_flpar(data=FLPars('F'   =ref2021[c("Fmsy","Flim")]),x=1980)+
+   xlab("Year")+ylab("")+
+   theme(legend.position = "bottom", 
+         axis.title.y = element_blank(), 
+         axis.text.y  = element_blank(), 
+         axis.ticks.y = element_blank(), 
+         plot.margin = unit(c(0, 0, 1, 0), "lines"),
+         panel.background = element_rect(fill   ="NA", colour ="NA"), 
+         panel.border     = element_rect(fill   ="NA", colour ="grey50"), 
+         panel.grid.major = element_line(colour ="NA"), 
+         panel.grid.minor = element_line(colour ="NA"))+
+    facet_grid(factor(qname,levels=c("SSB","F","Catch","Rec"))~.,scale="free")
+```
+
+**Figure `r iFig=iFig+1;iFig`** Historical stock trends with reference points.
+
+
+```{r, echo}
+save(ices,refs,ref2021,file="../data/om/icesAssessment.RData")  
+```
+
+[Back to Top](#top)
+
+
+# Software Version {#pkgs}
+
+* `r version$version.string`
+
+* FLCore:   `r packageVersion('FLCore')`
+* ggplotFL: `r packageVersion('ggplotFL')`
+* FLAssess: `r packageVersion('FLAssess')`
+
+* plyr:     `r packageVersion('plyr')`
+
+* stockassessment:  `r packageVersion('stockassessment')`
+* FLfse:            `r packageVersion('FLfse')`
+
+
+* **Compiled**: `r date()`
+* **Git Hash**: `r system("git log --pretty=format:'%h' -n 1", intern=TRUE)`
+
+[Back to Top](#top)
+
+# Funding {#funds}
+
+[Back to Top](#top)
+
+# References {#bib}
+
+[Back to Top](#top)
+
+
+
+
+
